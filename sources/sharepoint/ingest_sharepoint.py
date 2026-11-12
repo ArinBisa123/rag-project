@@ -8,7 +8,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from auth.auth import get_access_token
-from doc_source.sharepoint import (get_sharepoint_metadata)
+from sources.sharepoint import (get_sharepoint_metadata)
 
 load_dotenv(override=True)
 graph_base_url = os.getenv("GRAPH_BASE_URL")

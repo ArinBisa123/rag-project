@@ -1,5 +1,5 @@
 from auth.auth import get_access_token
-from doc_source.sharepoint import get_sharepoint_metadata
+from sources.sharepoint import get_sharepoint_metadata
 from dotenv import load_dotenv
 import os
 
