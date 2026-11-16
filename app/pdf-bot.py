@@ -8,6 +8,8 @@ from dotenv import load_dotenv
 from utils.extract_file_message import (supported_doc_type, extract_uploaded_doc )
 from utils.img_to_content import (supported_img_type, uploaded_img_to_content)
 from utils.show_attachment import display_uploaded_file
+from sources.database.query_tools import (CLAIM_TOOLS)
+from utils.database_runner import run_database_tools
 
 load_dotenv(override=True)
 chroma_dir = Path("./chroma_db")
@@ -41,6 +43,10 @@ def load_llm():
 try:
     vector_db = load_chroma()
     llm = load_llm()
+    database_tool = llm.bind_tools(CLAIM_TOOLS)
+    database_tool_map ={
+        database_tool.name:database_tool for database_tool in CLAIM_TOOLS
+    }
 except Exception as e:
     st.error(f"Failed to initialize resources: {e}")
     st.stop()
@@ -48,20 +54,21 @@ except Exception as e:
 retriever = vector_db.as_retriever(search_kwargs={"k": 4})
 template = """
 You are a helpful assistant that answers questions using the available company knowledge and user attachments.
+Use the following sources:
+1. Sharepoint knowledge: {sharepoint_context}
+2. Employee and medical claim database: {database_context}
+3. User attachments: {attachment_context}
+
 Instructions:
-1. Use the SharePoint knowledge context when relevant
+1. Use SharePoint context for company policies, benefit rules, eligibility, and claim limits.
 2. Use uploaded document content when relevant
+3. Use database information for employee and transaction facts.
 3. Analyze uploaded image when provided
-4. Clearly distinguish information from company knowledge and information frm user attachments
+4. Clearly distinguish information from company knowledge, database, and information from user attachments
 5. If the answer cannot be found in the provided context or attachments, say that you do not know
-6. Do not invent information
+6. Do not invent information like  employee records, claim amounts, dates,
+    claim history, or policy limits.
 7. Keep the answer concise and factual.
-
-SharePoint knowledge context:
-{sharepoint_context}
-
-Uploaded document context:
-{attachment_context}
 
 Question:
 {question}
@@ -224,11 +231,13 @@ if user_input:
         try:
             with st.spinner("Thinking..."):
                 retrieved_docs = retriever.invoke(user_question)
+                database_context = run_database_tools(user_question=user_question, tool_model=database_tool, tool_map=database_tool_map)
                 sharepoint_context= format_docs(retrieved_docs)
                 (attachment_context,image_context)=process_uploaded_files(uploaded_files)
                 # prompting
                 final_prompt=prompt.format(
                     sharepoint_context=sharepoint_context,
+                    database_context=database_context,
                     attachment_context=attachment_context,
                     question= user_question
                 )
