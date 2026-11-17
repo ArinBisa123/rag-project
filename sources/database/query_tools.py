@@ -16,18 +16,18 @@ def to_json(data):
     return json.dumps(data, ensure_ascii=False, indent=2, default=json_serializer)
 
 @tool
-def find_employee(employee_id:str)->str:
+def find_employee(employee_id:Optional[str]=None, employee_name: Optional[str]=None)->str:
     """
     Get employee profile from SQL Server.
 
-    Use this tool when the user asks about an employee's
+    Use this tool when the user asks about an employee's id, employee's name
     name, business unit, position, join date, or employment
     status and provides an Employee ID such as EMP0008.
 
     Do not invent an Employee ID.
     """
 
-    employee = get_employee(employee_id.upper().strip())
+    employee = get_employee(employee_id=employee_id, employee_name=employee_name)
     if not employee:
         return(f"Employee {employee_id} was not found.")
     return to_json(employee)

@@ -14,9 +14,6 @@ from utils.database_runner import run_database_tools
 load_dotenv(override=True)
 chroma_dir = Path("./chroma_db")
 collection_name = "sharepoint_docs"
-# embeddings_model= "models/gemini-embedding-001"
-# llm_model= "gemini-3.6-flash"
-
 # set page
 st.set_page_config(
     page_title="PDF Chatbot",
