@@ -5,11 +5,13 @@ from langchain_google_genai import (GoogleGenerativeAIEmbeddings, ChatGoogleGene
 from langchain_core.prompts import PromptTemplate
 from langchain_core.messages import HumanMessage
 from dotenv import load_dotenv
-from utils.extract_file_message import (supported_doc_type, extract_uploaded_doc )
-from utils.img_to_content import (supported_img_type, uploaded_img_to_content)
 from utils.show_attachment import display_uploaded_file
 from sources.database.query_tools import (CLAIM_TOOLS)
 from utils.database_runner import run_database_tools
+from utils.format_docs import format_docs
+from utils.clean_response_gemini import clean_response_gemini
+from utils.show_sources import show_sources
+from utils.process_uploaded_files import process_uploaded_files
 
 load_dotenv(override=True)
 chroma_dir = Path("./chroma_db")
@@ -80,115 +82,6 @@ if "messages" not in st.session_state:
 for messages in st.session_state.messages:
     with st.chat_message(messages["role"]):
         st.markdown(messages["content"])
-# helper format docs
-def format_docs(docs):
-    if not docs:
-        return "No relevant documents were retrieved"
-    formatted_documents = []
-    for index, document in enumerate(docs, start=1):
-        file_name= document.metadata.get("sharepoint_file_name", "Unknown document")
-        page = document.metadata.get("page")
-        if page is not None:
-            source_label = (
-                f"{file_name}, page {page + 1}"
-            )
-        else:
-            source_label = file_name
-        formatted_documents.append(
-            "\n".join([
-                f"[Source {index}: {source_label}]",
-                document.page_content
-            ])
-        )
-    return "\n\n".join(formatted_documents)
-# helper clean response gemini
-def clean_response_gemini(content):
-    if isinstance(content, str):
-        return content
-    if isinstance(content, list):
-        texts = []
-        for block in content:
-            if isinstance(block, dict):
-                text = block.get("text")
-                if text:
-                    texts.append(block["text"])
-            elif isinstance(block, str):
-                texts.append(block)
-        return "\n".join(texts)
-    return str(content)
-# helper show sources
-def show_sources(docs):
-    st.markdown("### Sources")
-
-    displayed_sources = set()
-
-    for document in docs:
-        filename = document.metadata.get(
-            "sharepoint_file_name",
-            "Unknown document"
-        )
-
-        web_url = document.metadata.get(
-            "sharepoint_file_web_url",
-            ""
-        )
-
-        page = document.metadata.get("page")
-
-        if page is not None:
-            page_number = page + 1
-            label = f"{filename} - halaman {page_number}"
-        else:
-            page_number = None
-            label = filename
-
-        source_key = (
-            filename,
-            page_number,
-            web_url
-        )
-        if source_key in displayed_sources:
-            continue
-
-        displayed_sources.add(source_key)
-
-        if web_url:
-            st.markdown(
-                f"- [{label}]({web_url})"
-            )
-        else:
-            st.markdown(
-                f"- {label}"
-            )
-# helper attachment
-def process_uploaded_files(uploaded_files):
-    attachment_context_parts=[]
-    image_context = []
-    for uploaded_file in uploaded_files:
-        extension = Path(uploaded_file.name).suffix.lower()
-        if extension in supported_doc_type:
-            extracted_text= extract_uploaded_doc(uploaded_file)
-            if extracted_text.strip():
-                attachment_context_parts.append("\n".join(
-                    [(
-                        f"uploaded document:{uploaded_file.name}"
-                    ), f"document content:{extracted_text}"]
-                ))
-            else:
-                attachment_context_parts.append("\n".join(
-                                    [(
-                                        f"uploaded document:{uploaded_file.name}"
-                                    ), ("no readable text was extracted from this document")]
-                                ))
-        elif extension in supported_img_type:
-            image_block = uploaded_img_to_content(uploaded_file)
-            image_context.append(image_block)
-        else:
-            raise ValueError(f"Unsupported format:{uploaded_file.name}")
-    attachment_context= "\n\n".join(attachment_context_parts)
-    if not attachment_context:
-        attachment_context=("No file attachment was provided")
-    return attachment_context,image_context
 
 # chat input
 user_input=st.chat_input("Ask anything about document", accept_file="multiple", max_upload_size=20)
